@@ -905,9 +905,9 @@ class CJoinElement
 	public function getTableNameWithAlias()
 	{
 		if($this->tableAlias!==null)
-			return $this->_table->rawName . ' ' . $this->rawTableAlias;
+			return $this->_table->rawName . ' ' . $this->rawTableAlias . ' WITH(NOLOCK)';
 		else
-			return $this->_table->rawName;
+			return $this->_table->rawName . ' WITH(NOLOCK)';
 	}
 
 	/**

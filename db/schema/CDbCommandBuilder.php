@@ -90,7 +90,7 @@ class CDbCommandBuilder extends CComponent
 			$select=implode(', ',$select);
 		}
 
-		$sql=($criteria->distinct ? 'SELECT DISTINCT':'SELECT')." {$select} FROM {$table->rawName} $alias";
+		$sql=($criteria->distinct ? 'SELECT DISTINCT':'SELECT')." {$select} FROM {$table->rawName} $alias WITH(NOLOCK)";
 		$sql=$this->applyJoin($sql,$criteria->join);
 		$sql=$this->applyCondition($sql,$criteria->condition);
 		$sql=$this->applyGroup($sql,$criteria->group);
