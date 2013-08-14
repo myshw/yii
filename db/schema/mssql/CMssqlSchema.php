@@ -222,50 +222,44 @@ EOD;
 	 */
 	protected function findForeignKeys($table)
 	{
-		$rc='INFORMATION_SCHEMA.REFERENTIAL_CONSTRAINTS';
-		$kcu='INFORMATION_SCHEMA.KEY_COLUMN_USAGE';
-		if (isset($table->catalogName))
-		{
-			$kcu=$table->catalogName.'.'.$kcu;
-			$rc=$table->catalogName.'.'.$rc;
-		}
-
-		//From http://msdn2.microsoft.com/en-us/library/aa175805(SQL.80).aspx
-		$sql = <<<EOD
-		SELECT
-		     KCU1.CONSTRAINT_NAME AS 'FK_CONSTRAINT_NAME'
-		   , KCU1.TABLE_NAME AS 'FK_TABLE_NAME'
-		   , KCU1.COLUMN_NAME AS 'FK_COLUMN_NAME'
-		   , KCU1.ORDINAL_POSITION AS 'FK_ORDINAL_POSITION'
-		   , KCU2.CONSTRAINT_NAME AS 'UQ_CONSTRAINT_NAME'
-		   , KCU2.TABLE_NAME AS 'UQ_TABLE_NAME'
-		   , KCU2.COLUMN_NAME AS 'UQ_COLUMN_NAME'
-		   , KCU2.ORDINAL_POSITION AS 'UQ_ORDINAL_POSITION'
-		FROM {$this->quoteTableName($rc)} RC
-		JOIN {$this->quoteTableName($kcu)} KCU1
-		ON KCU1.CONSTRAINT_CATALOG = RC.CONSTRAINT_CATALOG
-		   AND KCU1.CONSTRAINT_SCHEMA = RC.CONSTRAINT_SCHEMA
-		   AND KCU1.CONSTRAINT_NAME = RC.CONSTRAINT_NAME
-		JOIN {$this->quoteTableName($kcu)} KCU2
-		ON KCU2.CONSTRAINT_CATALOG =
-		RC.UNIQUE_CONSTRAINT_CATALOG
-		   AND KCU2.CONSTRAINT_SCHEMA =
-		RC.UNIQUE_CONSTRAINT_SCHEMA
-		   AND KCU2.CONSTRAINT_NAME =
-		RC.UNIQUE_CONSTRAINT_NAME
-		   AND KCU2.ORDINAL_POSITION = KCU1.ORDINAL_POSITION
-		WHERE KCU1.TABLE_NAME = :table
+        $st = 'sys.tables';
+        $sc = 'sys.columns';
+        $sfkc = 'sys.foreign_key_columns';
+        if (isset($table->catalogName)) {
+            $st = $table->catalogName.'.'.$st;
+            $sc = $table->catalogName.'.'.$sc;
+            $sfkc = $table->catalogName.'.'.$sfkc;
+        }
+        $sql = <<<EOD
+        SELECT  OBJECT_NAME(fkc.constraint_object_id) AS FK_CONSTRAINT_NAME,
+            child.name AS FK_TABLE_NAME,
+            child_cols.name AS FK_COLUMN_NAME,
+            referenced.name AS UQ_TABLE_NAME,
+            referenced_cols.name AS UQ_COLUMN_NAME
+        FROM {$this->quoteTableName($sfkc)} AS fkc
+        INNER JOIN {$this->quoteTableName($st)} AS child
+            ON fkc.parent_object_id = child.[object_id]
+        INNER JOIN {$this->quoteTableName($st)} AS referenced
+            ON fkc.referenced_object_id = referenced.[object_id]
+        INNER JOIN {$this->quoteTableName($sc)} AS referenced_cols
+            ON fkc.parent_column_id = referenced_cols.column_id
+            AND referenced_cols.[object_id] = referenced.[object_id]
+        INNER JOIN {$this->quoteTableName($sc)} AS child_cols
+            ON fkc.referenced_column_id = child_cols.column_id
+            AND child_cols.[object_id] = child.[object_id]
+        WHERE child.name = :table
+    ORDER BY fkc.parent_column_id;
 EOD;
-		$command = $this->getDbConnection()->createCommand($sql);
-		$command->bindValue(':table', $table->name);
-		$fkeys=array();
-		foreach($command->queryAll() as $info)
-		{
-			$fkeys[$info['FK_COLUMN_NAME']]=array($info['UQ_TABLE_NAME'],$info['UQ_COLUMN_NAME'],);
+        $command = $this->getDbConnection()->createCommand($sql);
+        $command->bindValue(':table', $table->name);
+        $fkeys=array();
+        foreach($command->queryAll() as $info)
+        {
+            $fkeys[$info['FK_COLUMN_NAME']]=array($info['UQ_TABLE_NAME'],$info['UQ_COLUMN_NAME'],);
 
-		}
-		return $fkeys;
-	}
+        }
+        return $fkeys;
+    }
 
 
 	/**
