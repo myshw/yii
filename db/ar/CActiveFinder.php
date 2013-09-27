@@ -905,9 +905,13 @@ class CJoinElement
 	public function getTableNameWithAlias()
 	{
 		if($this->tableAlias!==null)
-			return $this->_table->rawName . ' ' . $this->rawTableAlias . ' WITH(NOLOCK)';
+			return ($this->_builder->dbConnection->getDriverName() === 'sqlsrv')
+				? $this->_table->rawName . ' ' . $this->rawTableAlias . ' WITH(NOLOCK)'
+				: $this->_table->rawName . ' ' . $this->rawTableAlias;
 		else
-			return $this->_table->rawName . ' WITH(NOLOCK)';
+			return ($this->_builder->dbConnection->getDriverName() === 'sqlsrv')
+				? $this->_table->rawName . ' WITH(NOLOCK)'
+				: $this->_table->rawName;
 	}
 
 	/**
